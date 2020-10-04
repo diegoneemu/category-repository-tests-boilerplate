@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import javax.validation.Validation;
 import javax.validation.Validator;
 
+import com.library.app.category.exception.CategoryNotFoundException;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -66,10 +67,62 @@ public class CategoryServicesUTest {
 		assertThat(categoryAdded.getId(), is(equalTo(1L)));
 	}
 
+	@Test
+	public void updateWithNullName() {
+		updateCategoryWithInvalidName(null);
+	}
+
+	@Test
+	public void updateWithShortName() {
+		updateCategoryWithInvalidName("A");
+	}
+
+	@Test
+	public void updateWithLongName() {
+		updateCategoryWithInvalidName("This is a long name that will cause an exception to be thrown");
+	}
+
+	@Test(expected = CategoryExistentException.class)
+	public void updateCategoryWithExistentName() {
+		final Category java = categoryWithId(java(), 1L);
+		when(categoryRepository.alreadyExists(java)).thenReturn(true);
+
+		categoryServices.update(java);
+	}
+
+	@Test(expected = CategoryNotFoundException.class)
+	public void updateCategoryNotFound() {
+		final Category java = categoryWithId(java(), 1L);
+		when(categoryRepository.alreadyExists(java)).thenReturn(false);
+		when(categoryRepository.existsById(1L)).thenReturn(false);
+
+		categoryServices.update(java);
+	}
+
+	@Test
+	public void updateValidCategory() {
+		final Category java = categoryWithId(java(), 1L);
+		when(categoryRepository.alreadyExists(java)).thenReturn(false);
+		when(categoryRepository.existsById(1L)).thenReturn(true);
+
+		categoryServices.update(java);
+
+		verify(categoryRepository).update(java);
+	}
+
 	private void addCategoryWithInvalidName(final String name) {
 		try {
 			categoryServices.add(new Category(name));
 			fail("An error should have been throw");
+		} catch (final FieldNotValidException e) {
+			assertThat(e.getFieldName(), is(equalTo("name")));
+		}
+	}
+
+	private void updateCategoryWithInvalidName(final String name) {
+		try {
+			categoryServices.update(new Category(name));
+			fail("An error should have been thrown");
 		} catch (final FieldNotValidException e) {
 			assertThat(e.getFieldName(), is(equalTo("name")));
 		}
